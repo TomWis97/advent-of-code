@@ -7,5 +7,6 @@ do
     python3 2.py process $line $jid &
     jid=$((jid+1))
 done
-echo "Wait for jobs..."
+jobs -p
 wait $(jobs -p)
+

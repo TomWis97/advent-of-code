@@ -123,6 +123,13 @@ def parse_input():
     with open('maps.json', 'wt') as f:
         f.write(json.dumps(maps))
 
+def parse_results(filenames):
+    result_list = []
+    for file in filenames:
+        with open(file, 'rt') as f:
+            result_list.append(int(f.read()))
+    return sorted(result_list)[0]
+
 def process():
     # locations is a dict with location as key and seed as value.
     locations = {}
@@ -148,11 +155,16 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest="command", required=True)
     parser_input = subparsers.add_parser('read_input',
                                          help='Parse the input.txt file')
+
     parser_process = subparsers.add_parser('process',
                                            help='process input')
     parser_process.add_argument('start', help="start parameter", type=int)
     parser_process.add_argument('end', help="end parameter", type=int)
     parser_process.add_argument('jid', help="job id", type=int)
+
+    parser_result = subparsers.add_parser('results',
+                                          help='parse result files')
+    parser_result.add_argument('input', action='store', nargs='+')
     
     arguments = parser.parse_args()
 
@@ -161,3 +173,5 @@ if __name__ == "__main__":
         parse_input()
     elif arguments.command == 'process':
         process_batch(arguments.start, arguments.end, arguments.jid)
+    elif arguments.command == 'results':
+        print(parse_results(arguments.input))
