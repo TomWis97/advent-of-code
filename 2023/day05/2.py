@@ -102,7 +102,7 @@ locations = {}
 amount_of_seeds = len(seeds)
 progress("Processing {} seeds.".format(amount_of_seeds))
 for index, seed in enumerate(seeds):
-    if index % 10000000:
+    if index % 10000 == 0:
         progress("Processing seeds ({}%)...".format(round(index / amount_of_seeds * 100, 2)), update=True)
     seed_location = do_full_translation('seed', seed)
     locations[seed_location] = seed
@@ -113,4 +113,5 @@ for index, seed in enumerate(seeds):
 for location, seed in locations.items():
     debug("Seed {} @ location {}".format(seed, location))
 
+progress()
 print(sorted(locations.keys())[0])
