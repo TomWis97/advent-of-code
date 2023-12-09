@@ -1,3 +1,7 @@
+import uuid
+import argparse
+import json
+
 with open('input.txt', 'rt') as f:
     source_data_raw = f.readlines()
 
@@ -46,72 +50,107 @@ def do_full_translation(source, value):
     # Yay, recursive.
     return do_full_translation(destination, result)
 
-# maps is a dict with: key is source type.
-# value is a dict, with the following structure:
-#   'destination' -> string, destination type of map.
-#   'mappings' -> list of dicts.
-#   - 'src_range' -> int
-#   - 'dest_range' -> int
-#   - 'length' -> int
-maps = {}
+def process_batch(begin, end):
+    with open('maps.json', 'rt') as f:
+        global maps
+        maps = json.loads(f.read())
+    local_locations = {}
+    for seed in range(begin, end):
+        local_locations[do_full_translation('seed', seed)] = seed
+    with open('results-' + str(uuid.uuid4()) + '.json', 'wt') as f:
+        f.write(json.dumps(local_locations))
 
-current_type = ()
-discovered_maps = []
-seeds = []
-current_line_number = 0
-for line in source_data:
-    current_line_number += 1
-    if line.startswith('seeds: '):
-        current_seed_start = None
-        for seed_input in [ int(seed) for seed in line.split(':')[1].strip().split(' ') ]:
-            if current_seed_start == None:
-                current_seed_start = int(seed_input)
-            else:
-                # current_seed_start is set.
-                progress("Building seed list with start={}, length={}".format(current_seed_start, seed_input))
-                seeds.extend(range(current_seed_start, current_seed_start + int(seed_input)))
-                current_seed_start = None
-        debug("Seeds:", seeds)
-    elif line == "" or current_line_number == len(source_data):
-        if len(discovered_maps) == 0:
-            # First whitespace. Ignore.
-            debug("Ignoring line as it's the first empty line.")
-            continue
-        maps[current_type[0]] = {
-            'destination': current_type[1],
-            'mappings': discovered_maps.copy()}
-        debug("Empty line found, saving and resetting vars.")
-        current_type = ()
-        discovered_maps = []
-    elif line[0].isnumeric():
-        # Mapping found.
-        discovered_maps.append({
-            'src_range': int(line.split(' ')[1]),
-            'dest_range': int(line.split(' ')[0]),
-            'length': int(line.split(' ')[2])})
-    else: 
-        # Line with description found.
-        description = line.split(' ')[0].split('-')
-        debug("Current type:", description[0], description[2])
-        current_type = (description[0], description[2])
+def parse_input():
+    """Writes maps.json
+    Writes seeds to stdout."""
+    # maps is a dict with: key is source type.
+    # value is a dict, with the following structure:
+    #   'destination' -> string, destination type of map.
+    #   'mappings' -> list of dicts.
+    #   - 'src_range' -> int
+    #   - 'dest_range' -> int
+    #   - 'length' -> int
+    maps = {}
 
-debug("Discovered maps", maps)
+    current_type = ()
+    discovered_maps = []
+    seeds = []
+    current_line_number = 0
+    for line in source_data:
+        current_line_number += 1
+        if line.startswith('seeds: '):
+            current_seed_start = None
+            for seed_input in [ int(seed) for seed in line.split(':')[1].strip().split(' ') ]:
+                if current_seed_start == None:
+                    current_seed_start = int(seed_input)
+                else:
+                    # current_seed_start is set.
+                    progress("Building seed list with start={}, length={}".format(current_seed_start, seed_input))
+                    seeds.extend((current_seed_start, current_seed_start + int(seed_input)))
+                    print(current_seed_start, current_seed_start + int(seed_input))
+                    current_seed_start = None
+            debug("Seeds:", seeds)
+        elif line == "" or current_line_number == len(source_data):
+            if len(discovered_maps) == 0:
+                # First whitespace. Ignore.
+                debug("Ignoring line as it's the first empty line.")
+                continue
+            maps[current_type[0]] = {
+                'destination': current_type[1],
+                'mappings': discovered_maps.copy()}
+            debug("Empty line found, saving and resetting vars.")
+            current_type = ()
+            discovered_maps = []
+        elif line[0].isnumeric():
+            # Mapping found.
+            discovered_maps.append({
+                'src_range': int(line.split(' ')[1]),
+                'dest_range': int(line.split(' ')[0]),
+                'length': int(line.split(' ')[2])})
+        else: 
+            # Line with description found.
+            description = line.split(' ')[0].split('-')
+            debug("Current type:", description[0], description[2])
+            current_type = (description[0], description[2])
 
-# locations is a dict with location as key and seed as value.
-locations = {}
-amount_of_seeds = len(seeds)
-progress("Processing {} seeds.".format(amount_of_seeds))
-for index, seed in enumerate(seeds):
-    if index % 10000 == 0:
-        progress("Processing seeds ({}%)...".format(round(index / amount_of_seeds * 100, 2)), update=True)
-    seed_location = do_full_translation('seed', seed)
-    locations[seed_location] = seed
-    debug("=== Output found: seed {} to location {}".format(
-        seed,
-        seed_location))
+    debug("Discovered maps", maps)
+    with open('maps.json', 'wt') as f:
+        f.write(json.dumps(maps))
 
-for location, seed in locations.items():
-    debug("Seed {} @ location {}".format(seed, location))
+def process():
+    # locations is a dict with location as key and seed as value.
+    locations = {}
+    amount_of_seeds = len(seeds)
+    progress("Processing {} seeds.".format(amount_of_seeds))
+    for index, seed in enumerate(seeds):
+        if index % 10000 == 0:
+            progress("Processing seeds ({}%)...".format(round(index / amount_of_seeds * 100, 2)), update=True)
+        seed_location = do_full_translation('seed', seed)
+        locations[seed_location] = seed
+        debug("=== Output found: seed {} to location {}".format(
+            seed,
+            seed_location))
 
-progress()
-print(sorted(locations.keys())[0])
+    for location, seed in locations.items():
+        debug("Seed {} @ location {}".format(seed, location))
+
+    progress()
+    print(sorted(locations.keys())[0])
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser_input = subparsers.add_parser('read_input',
+                                         help='Parse the input.txt file')
+    parser_process = subparsers.add_parser('process',
+                                           help='process input')
+    parser_process.add_argument('start', help="start parameter", type=int)
+    parser_process.add_argument('end', help="end parameter", type=int)
+    
+    arguments = parser.parse_args()
+
+    if arguments.command == 'read_input':
+        show_progress = False
+        parse_input()
+    elif arguments.command == 'process':
+        process_batch(arguments.start, arguments.end)
