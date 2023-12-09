@@ -50,15 +50,21 @@ def do_full_translation(source, value):
     # Yay, recursive.
     return do_full_translation(destination, result)
 
-def process_batch(begin, end):
+def process_batch(begin, end, jid):
+    lowest = None
     with open('maps.json', 'rt') as f:
         global maps
         maps = json.loads(f.read())
-    local_locations = {}
-    for seed in range(begin, end):
-        local_locations[do_full_translation('seed', seed)] = seed
-    with open('results-' + str(uuid.uuid4()) + '.json', 'wt') as f:
-        f.write(json.dumps(local_locations))
+    for index, seed in enumerate(range(begin, end)):
+        if index % 1000000 == 0:
+            progress("[{}] Processing seeds ({}%)...".format(jid, round(index / (end - begin) * 100, 2)))
+        current_location = do_full_translation('seed', seed)
+        if lowest == None or current_location < lowest:
+            lowest = current_location
+    filename = 'results-' + str(uuid.uuid4()) + '.json'
+    with open(filename, 'wt') as f:
+        print(lowest)
+        f.write(json.dumps(lowest))
 
 def parse_input():
     """Writes maps.json
@@ -146,6 +152,7 @@ if __name__ == "__main__":
                                            help='process input')
     parser_process.add_argument('start', help="start parameter", type=int)
     parser_process.add_argument('end', help="end parameter", type=int)
+    parser_process.add_argument('jid', help="job id", type=int)
     
     arguments = parser.parse_args()
 
@@ -153,4 +160,4 @@ if __name__ == "__main__":
         show_progress = False
         parse_input()
     elif arguments.command == 'process':
-        process_batch(arguments.start, arguments.end)
+        process_batch(arguments.start, arguments.end, arguments.jid)
