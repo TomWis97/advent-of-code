@@ -16,7 +16,7 @@ for node in b.source_data[2:]:
 
 steps = 0
 current_node = 'AAA'
-while not current_node.endswith('Z'):
+while not current_node == 'ZZZ':
     step_to_take = instructions[steps % len(instructions)]
     if step_to_take == 'L':
         current_node = nodes[current_node][0]
